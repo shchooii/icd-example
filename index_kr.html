@@ -62,15 +62,19 @@ button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .top { display: flex; flex-direction: column; gap: 10px; }
-.top-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
 .lede { color: var(--muted); max-width: 62ch; }
 .ex-pick { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
 .ex-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
 .ex-btn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .ex-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.lang-btn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 13px; color: var(--accent); text-decoration: none; }
-.lang-btn:hover { border-color: var(--accent); }
+.top-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.lang-switch { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px; gap: 2px; }
+.top-tools .divider { width: 1px; align-self: stretch; background: var(--line); }
+.lang-opt { border-radius: 4px; padding: 2px 9px; font-size: 12.5px; line-height: 1.6; color: var(--muted); text-decoration: none; }
+.lang-opt:hover { color: var(--ink); background: var(--chip); }
+.lang-opt[aria-current="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 500; }
 .banner { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); border-radius: 6px; padding: 8px 12px; font-size: 13.5px; }
 
 .stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -163,8 +167,14 @@ mark.ev.on { background: var(--mark-on); }
   <header class="top">
     <div class="top-row">
       <h1>ICD 코딩 근거 검토</h1>
-      <a class="lang-btn" href="/index_en.html" hreflang="en" lang="en">English</a>
-      <div class="ex-pick" role="group" aria-label="예시 노트"><span>예시 노트</span><span class="ex-buttons" id="example-buttons"></span></div>
+      <div class="top-tools">
+        <div class="ex-pick" role="group" aria-label="예시 노트"><span>예시 노트</span><span class="ex-buttons" id="example-buttons"></span></div>
+        <span class="divider" aria-hidden="true"></span>
+        <nav class="lang-switch" aria-label="언어">
+          <a class="lang-opt" href="/" hreflang="ko" lang="ko" aria-current="true">한국어</a>
+          <a class="lang-opt" href="/index_en.html" hreflang="en" lang="en">EN</a>
+        </nav>
+      </div>
     </div>
     <p class="lede">모델이 제안한 ICD-10-CM 코드를 노트 원문의 근거와 나란히 보고, 수락하거나 제외하거나 다른 후보로 바꿉니다.</p>
     <p class="banner" id="mock-banner" hidden>이 예시의 추출 개념, 후보, 제안 코드는 화면 구성을 보여주려고 손으로 만든 것입니다. 실제 파이프라인 출력이 아닙니다.</p>

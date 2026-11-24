@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+</head>
+<body>
+<title>ICD Coding Evidence Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* layout: pipeline strip on top, note with highlighted evidence on the left, review panel on the right */
+:root {
+  --bg: #f1f4f3;
+  --surface: #ffffff;
+  --ink: #17211f;
+  --muted: #586764;
+  --line: #d3dbd8;
+  --chip: #e6edea;
+  --accent: #0b6a60;
+  --accent-ink: #ffffff;
+  --mark: #fdeaa6;
+  --mark-on: #f5b13c;
+  --ok: #1c7340;
+  --ok-bg: #e2f2e7;
+  --no: #a3302a;
+  --no-bg: #f8e5e3;
+  --warn: #7d5200;
+  --warn-bg: #fbefd0;
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111615; --surface: #1a2120; --ink: #e5ebe9; --muted: #9aa8a4; --line: #2d3836; --chip: #232d2b;
+    --accent: #56c7b7; --accent-ink: #06211d; --mark: #574813; --mark-on: #a36f0c;
+    --ok: #72d398; --ok-bg: #163423; --no: #f08c84; --no-bg: #3a1c1a; --warn: #f0c56c; --warn-bg: #3a2e10;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111615; --surface: #1a2120; --ink: #e5ebe9; --muted: #9aa8a4; --line: #2d3836; --chip: #232d2b;
+  --accent: #56c7b7; --accent-ink: #06211d; --mark: #574813; --mark-on: #a36f0c;
+  --ok: #72d398; --ok-bg: #163423; --no: #f08c84; --no-bg: #3a1c1a; --warn: #f0c56c; --warn-bg: #3a2e10;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; }
+.app {
+  max-width: 1280px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+h1, h2, h3, p, ol, ul { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+button, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; flex-direction: column; gap: 10px; }
+.top-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 62ch; }
+.ex-pick { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.ex-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+.ex-btn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ex-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.banner { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); border-radius: 6px; padding: 8px 12px; font-size: 13.5px; }
+
+.stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stage-name { font-size: 12px; color: var(--muted); letter-spacing: 0.02em; }
+.stage-main { font-weight: 600; font-variant-numeric: tabular-nums; }
+.stage-sub { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel-head { padding: 12px 16px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+h2 { font-size: 15px; font-weight: 600; }
+.src { font-size: 12.5px; color: var(--muted); }
+.note-panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+.note-body {
+  padding: 14px 16px; white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: calc(100vh - 150px); overflow: auto; font-size: 14.5px; line-height: 1.7;
+}
+.legend { padding: 8px 16px 12px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.swatch { display: inline-block; width: 22px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+.swatch.m1 { background: var(--mark); }
+.swatch.m2 { background: var(--mark-on); }
+mark.ev { background: var(--mark); color: inherit; border-radius: 2px; cursor: pointer; padding: 1px 0; }
+mark.ev.dim { background: transparent; box-shadow: inset 0 -2px 0 var(--mark); }
+mark.ev.on { background: var(--mark-on); }
+
+.tabs { display: flex; gap: 4px; padding: 8px 10px 0; border-bottom: 1px solid var(--line); }
+.tab { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 8px 10px; color: var(--muted); font-weight: 500; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.view { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; background: var(--surface); }
+.card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card.accepted { background: var(--ok-bg); }
+.card.rejected { background: var(--no-bg); }
+.card.rejected .code-title { text-decoration: line-through; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; background: transparent; border: 0; padding: 0; text-align: left; width: 100%; }
+.code { font-family: var(--font-mono); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; }
+.code-title { flex: 1 1 12ch; min-width: 0; }
+.chip { display: inline-block; background: var(--chip); color: var(--muted); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.no { background: var(--no-bg); color: var(--no); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+.meta { font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 500; }
+.quotes { display: flex; flex-direction: column; gap: 4px; }
+.quote { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; border: 0; background: transparent; padding: 3px 0 3px 10px; border-left: 3px solid var(--mark-on); text-align: left; font-size: 13.5px; }
+.quote.unlinked { border-left-color: var(--line); cursor: default; }
+.quote-text { min-width: 0; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; font-size: 13.5px; }
+.btn[aria-pressed="true"].accept { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.btn[aria-pressed="true"].reject { background: var(--no); border-color: var(--no); color: var(--surface); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.link { border-color: transparent; background: transparent; color: var(--accent); padding-inline: 4px; }
+.alts { border-top: 1px dashed var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.alts-title { font-size: 12.5px; color: var(--muted); }
+.cand-list { display: flex; flex-direction: column; gap: 2px; }
+.cand { display: grid; grid-template-columns: 1.6em 7.5em minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 13.5px; }
+.cand .rank { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.cand .ccode { font-family: var(--font-mono); }
+.cand .ctitle { min-width: 0; overflow-wrap: anywhere; }
+.cand.picked .ccode, .cand.picked .ctitle { font-weight: 600; }
+
+.summary { border-top: 1px solid var(--line); padding: 12px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px; font-variant-numeric: tabular-nums; }
+.spacer { flex: 1 1 0; }
+.copy-status { font-size: 12.5px; color: var(--muted); order: 3; flex: 1 0 100%; text-align: right; }
+.copy-status:empty { display: none; }
+#copy-fallback { order: 4; }
+#copy-fallback { width: 100%; min-height: 90px; font-family: var(--font-mono); font-size: 12.5px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.foot { font-size: 12.5px; color: var(--muted); }
+.foot a { color: var(--accent); }
+
+@media (max-width: 860px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .note-panel { position: static; }
+  .note-body { max-height: 46vh; }
+  .stages { grid-template-columns: minmax(0, 1fr); }
+  .cand { grid-template-columns: 1.6em minmax(0, 1fr) auto; }
+  .cand .rank { grid-column: 1; grid-row: 1; }
+  .cand .ccode { grid-column: 2; grid-row: 1; }
+  .cand .ctitle { grid-column: 2 / 4; grid-row: 2; }
+  .cand > :last-child { grid-column: 3; grid-row: 1; justify-self: end; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="top-row">
+      <h1>ICD Coding Evidence Review</h1>
+      <div class="ex-pick" role="group" aria-label="Example note"><span>Example note</span><span class="ex-buttons" id="example-buttons"></span></div>
+    </div>
+    <p class="lede">Review the ICD-10-CM codes suggested by the model beside their evidence in the note, and accept, reject, or replace each one.</p>
+    <p class="banner" id="mock-banner" hidden>The concepts, candidates and suggested codes of this example were written by hand to show the layout. They are not pipeline output.</p>
+    <ol class="stages" id="stages"></ol>
+  </header>
+
+  <main class="cols">
+    <section class="panel note-panel" aria-label="Note text">
+      <div class="panel-head">
+        <h2 id="note-title">Note</h2>
+        <p class="src" id="note-source"></p>
+      </div>
+      <div class="note-body" id="note-body" tabindex="0"></div>
+      <p class="legend">
+        <span><span class="swatch m1"></span>Quoted as evidence</span>
+        <span><span class="swatch m2"></span>Evidence of the selected code</span>
+        <span>Click a highlighted span to go to its code.</span>
+      </p>
+    </section>
+
+    <section class="panel review-panel" aria-label="Code review">
+      <div class="tabs" role="tablist" aria-label="View">
+        <button class="tab" role="tab" id="tab-codes" aria-controls="view-codes" aria-selected="true">Suggested codes</button>
+        <button class="tab" role="tab" id="tab-items" aria-controls="view-items" aria-selected="false">Concepts and candidates</button>
+      </div>
+      <div class="view" id="view-codes" role="tabpanel" aria-labelledby="tab-codes"></div>
+      <div class="view" id="view-items" role="tabpanel" aria-labelledby="tab-items" hidden></div>
+      <div class="summary">
+        <div class="counts" id="counts"></div>
+        <span class="spacer"></span>
+        <span class="copy-status" id="copy-status" role="status" aria-live="polite"></span>
+        <button class="btn" id="reset-btn" type="button">Reset review</button>
+        <button class="btn primary" id="copy-btn" type="button">Copy accepted codes</button>
+        <textarea id="copy-fallback" readonly hidden aria-label="Accepted codes"></textarea>
+      </div>
+    </section>
+  </main>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.ICD_EXAMPLES = [{"catalog": "ICD-10-CM FY2022 April · G06 public catalog", "codes": [{"code": "S39.012A", "evidence": [{"end": 2025, "linked": true, "quote": "Acute lumbar strain.", "start": 2005}, {"end": 796, "linked": true, "quote": "He had surgery about 10 years ago in his lower back", "start": 745}], "item_ids": ["q02"], "title": "Strain of muscle, fascia and tendon of lower back, initial encounter"}, {"code": "E11.65", "evidence": [{"end": 1822, "linked": true, "quote": "Hemoglobin A1c is elevated at 8.", "start": 1790}, {"end": 2475, "linked": true, "quote": "Diabetes type 2.", "start": 2459}], "item_ids": ["q08", "q09"], "title": "Type 2 diabetes mellitus with hyperglycemia"}, {"code": "I50.9", "evidence": [{"end": 159, "linked": true, "quote": "congestive heart failure", "start": 135}, {"end": 2755, "linked": true, "quote": "Congestive heart failure.", "start": 2730}], "item_ids": ["q04"], "title": "Heart failure, unspecified"}, {"code": "M21.371", "evidence": [{"end": 689, "linked": true, "quote": "drop foot that he felt that for a while", "start": 650}], "item_ids": ["q06"], "title": "Foot drop, right foot"}, {"code": "Z79.84", "evidence": [{"end": 1216, "linked": true, "quote": "He is still on his metformin", "start": 1188}, {"end": 2727, "linked": true, "quote": "Increase metformin to 1000 mg twice daily", "start": 2686}], "item_ids": ["q09"], "title": "Long term (current) use of oral hypoglycemic drugs"}], "id": "pipeline-aci-bench-20261118-D2N004", "items": [{"candidates": [{"code": "M54.9", "rank": 1, "title": "Dorsalgia, unspecified"}, {"code": "M54.50", "rank": 2, "title": "Low back pain, unspecified"}, {"code": "M54.89", "rank": 3, "title": "Other dorsalgia"}, {"code": "M53.80", "rank": 4, "title": "Other specified dorsopathies, site unspecified"}, {"code": "M53.86", "rank": 5, "title": "Other specified dorsopathies, lumbar region"}], "concept": "Back pain", "evidence": [{"end": 27, "linked": true, "quote": "Back pain.", "start": 17}], "id": "q01", "query": "Back pain", "tags": []}, {"candidates": [{"code": "S39.012A", "rank": 1, "title": "Strain of muscle, fascia and tendon of lower back, initial encounter"}, {"code": "S39.012D", "rank": 2, "title": "Strain of muscle, fascia and tendon of lower back, subsequent encounter"}, {"code": "S39.002A", "rank": 3, "title": "Unspecified injury of muscle, fascia and tendon of lower back, initial encounter"}, {"code": "S39.092A", "rank": 4, "title": "Other injury of muscle, fascia and tendon of lower back, initial encounter"}, {"code": "S39.002D", "rank": 5, "title": "Unspecified injury of muscle, fascia and tendon of lower back, subsequent encounter"}], "concept": "Acute lumbar strain", "evidence": [{"end": 2025, "linked": true, "quote": "Acute lumbar strain.", "start": 2005}], "id": "q02", "query": "Acute lumbar strain", "tags": []}, {"candidates": [{"code": "E11.9", "rank": 1, "title": "Type 2 diabetes mellitus without complications"}, {"code": "E11.3292", "rank": 2, "title": "Type 2 diabetes mellitus with mild nonproliferative diabetic retinopathy without macular edema, left eye"}, {"code": "E11.3212", "rank": 3, "title": "Type 2 diabetes mellitus with mild nonproliferative diabetic retinopathy with macular edema, left eye"}, {"code": "E11.3211", "rank": 4, "title": "Type 2 diabetes mellitus with mild nonproliferative diabetic retinopathy with macular edema, right eye"}, {"code": "E11.3299", "rank": 5, "title": "Type 2 diabetes mellitus with mild nonproliferative diabetic retinopathy without macular edema, unspecified eye"}], "concept": "Type 2 diabetes", "evidence": [{"end": 179, "linked": true, "quote": "type 2 diabetes", "start": 164}, {"end": 2475, "linked": true, "quote": "Diabetes type 2.", "start": 2459}], "id": "q03", "query": "Type 2 diabetes mellitus", "tags": ["history"]}, {"candidates": [{"code": "I50.9", "rank": 1, "title": "Heart failure, unspecified"}, {"code": "I50.20", "rank": 2, "title": "Unspecified systolic (congestive) heart failure"}, {"code": "I50.22", "rank": 3, "title": "Chronic systolic (congestive) heart failure"}, {"code": "I50.40", "rank": 4, "title": "Unspecified combined systolic (congestive) and diastolic (congestive) heart failure"}, {"code": "I50.30", "rank": 5, "title": "Unspecified diastolic (congestive) heart failure"}], "concept": "Congestive heart failure", "evidence": [{"end": 159, "linked": true, "quote": "congestive heart failure", "start": 135}, {"end": 2755, "linked": true, "quote": "Congestive heart failure.", "start": 2730}], "id": "q04", "query": "Congestive heart failure", "tags": ["history"]}, {"candidates": [{"code": "G83.10", "rank": 1, "title": "Monoplegia of lower limb affecting unspecified side"}, {"code": "G83.31", "rank": 2, "title": "Monoplegia, unspecified affecting right dominant side"}, {"code": "G83.30", "rank": 3, "title": "Monoplegia, unspecified affecting unspecified side"}, {"code": "G58.9", "rank": 4, "title": "Mononeuropathy, unspecified"}, {"code": "G83.33", "rank": 5, "title": "Monoplegia, unspecified affecting right nondominant side"}], "concept": "Right lower extremity weakness", "evidence": [{"end": 640, "linked": true, "quote": "right lower extremity weakness", "start": 610}, {"linked": false, "quote": "right lower extremity weakness and drop foot"}], "id": "q05", "query": "Right lower extremity weakness", "tags": []}, {"candidates": [{"code": "M21.379", "rank": 1, "title": "Foot drop, unspecified foot"}, {"code": "M21.371", "rank": 2, "title": "Foot drop, right foot"}, {"code": "M21.372", "rank": 3, "title": "Foot drop, left foot"}, {"code": "S94.20XS", "rank": 4, "title": "Injury of deep peroneal nerve at ankle and foot level, unspecified leg, sequela"}, {"code": "S94.22XS", "rank": 5, "title": "Injury of deep peroneal nerve at ankle and foot level, left leg, sequela"}], "concept": "Drop foot", "evidence": [{"end": 689, "linked": true, "quote": "drop foot that he felt that for a while", "start": 650}, {"linked": false, "quote": "right lower extremity weakness and drop foot"}], "id": "q06", "query": "Drop foot", "tags": []}, {"candidates": [{"code": "M96.1", "rank": 1, "title": "Postlaminectomy syndrome, not elsewhere classified"}, {"code": "M53.86", "rank": 2, "title": "Other specified dorsopathies, lumbar region"}, {"code": "M53.87", "rank": 3, "title": "Other specified dorsopathies, lumbosacral region"}, {"code": "S39.82XS", "rank": 4, "title": "Other specified injuries of lower back, sequela"}, {"code": "S39.92XS", "rank": 5, "title": "Unspecified injury of lower back, sequela"}], "concept": "History of lower back surgery", "evidence": [{"end": 796, "linked": true, "quote": "He had surgery about 10 years ago in his lower back", "start": 745}], "id": "q07", "query": "History of lower back surgery", "tags": ["history"]}, {"candidates": [{"code": "E11.9", "rank": 1, "title": "Type 2 diabetes mellitus without complications"}, {"code": "E11.65", "rank": 2, "title": "Type 2 diabetes mellitus with hyperglycemia"}, {"code": "E13.9", "rank": 3, "title": "Other specified diabetes mellitus without complications"}, {"code": "E13.65", "rank": 4, "title": "Other specified diabetes mellitus with hyperglycemia"}, {"code": "O24.419", "rank": 5, "title": "Gestational diabetes mellitus in pregnancy, unspecified control"}], "concept": "Elevated hemoglobin A1c", "evidence": [{"end": 1822, "linked": true, "quote": "Hemoglobin A1c is elevated at 8.", "start": 1790}], "id": "q08", "query": "Elevated hemoglobin A1c", "tags": []}, {"candidates": [{"code": "Z79.84", "rank": 1, "title": "Long term (current) use of oral hypoglycemic drugs"}, {"code": "E11.9", "rank": 2, "title": "Type 2 diabetes mellitus without complications"}, {"code": "E11.65", "rank": 3, "title": "Type 2 diabetes mellitus with hyperglycemia"}, {"code": "Z79.899", "rank": 4, "title": "Other long term (current) drug therapy"}, {"code": "E74.9", "rank": 5, "title": "Disorder of carbohydrate metabolism, unspecified"}], "concept": "Long-term metformin use", "evidence": [{"end": 1216, "linked": true, "quote": "He is still on his metformin", "start": 1188}, {"end": 2727, "linked": true, "quote": "Increase metformin to 1000 mg twice daily", "start": 2686}], "id": "q09", "query": "Long-term use of metformin", "tags": ["history"]}, {"candidates": [{"code": "I50.22", "rank": 1, "title": "Chronic systolic (congestive) heart failure"}, {"code": "I50.20", "rank": 2, "title": "Unspecified systolic (congestive) heart failure"}, {"code": "I50.32", "rank": 3, "title": "Chronic diastolic (congestive) heart failure"}, {"code": "E11.9", "rank": 4, "title": "Type 2 diabetes mellitus without complications"}, {"code": "I50.30", "rank": 5, "title": "Unspecified diastolic (congestive) heart failure"}], "concept": "Compliance with medications", "evidence": [{"end": 973, "linked": true, "quote": "He is avoiding the salty foods and has been compliant with medications", "start": 903}, {"end": 1216, "linked": true, "quote": "He is still on his metformin", "start": 1188}], "id": "q10", "query": "Compliance with medications for congestive heart failure and type 2 diabetes", "tags": ["history"]}], "note": "CHIEF COMPLAINT\n\nBack pain.\n\nHISTORY OF PRESENT ILLNESS\n\nJames Allen is a 57-year-old male with a past medical history significant for congestive heart failure and type 2 diabetes, who presents today with back pain.\n\nThe patient states he was golfing and hurt his back. This happened approximately 4 days ago when he felt a pop in his back. The patient notes that he immediately hit the ground trying to loosen up his back. He reports taking some Tylenol, ibuprofen, and using ice and heat which did not relieve the pain. By Monday morning it loosened up a little bit, but it is still pretty sore. He had some right lower extremity weakness and some drop foot that he felt that for a while, and it got a little better this morning but not much. He had surgery about 10 years ago in his lower back.\n\nRegarding his congestive heart failure, he has been watching his diet and trying to exercise regularly. He is avoiding the salty foods and has been compliant with medications. He has gained a little weight over the summer but nothing more than 5 pounds. He has no problems lying flat to go to bed.\n\nRegarding his diabetes, he is watching his blood sugars at home, not always consistently. He is still on his metformin.\n\nREVIEW OF SYSTEMS\n\n• Constitutional: Denies weight loss. Endorses weight gain.\n• Musculoskeletal: Endorses back pain. Endorses right leg weakness and drop foot.\n\nPHYSICAL EXAMINATION\n\n• Cardiovascular: Grade 2/6 systolic ejection murmur, stable.\n• Musculoskeletal: Examination of his back reveals pain to palpation at L5. Decreased range of motion with flexion and extension. Positive straight leg raise. Strength is 4/5 on the right and 5/5 on the left.\n\nResults:\n\nX-ray lumbar spine, ordered and obtained in the office today, is unremarkable with good bony alignment.\n\nHemoglobin A1c is elevated at 8.\n\nASSESSMENT AND PLAN\n\nJames Allen is a 57-year-old male with a past medical history significant for congestive heart failure and type 2 diabetes, who presents today with back pain.\n\nAcute lumbar strain.\n• Medical Reasoning: The patient reports feeling a 'pop' and immediate pain while golfing approximately 4 days ago. He has tried Tylenol and ibuprofen without significant relief.\n• Additional Testing: If he continues to have pain, we will obtain an MRI for further evaluation.\n• Medical Treatment: Initiate meloxicam 15 mg once daily.\n• Specialist Referrals: We will refer him to physical therapy to work on strengthening the area.\n\nDiabetes type 2.\n• Medical Reasoning: He has been compliant with metformin and dietary modifications, but his recent hemoglobin A1c was 8.\n• Additional Testing: Repeat hemoglobin A1c in a couple of months.\n• Medical Treatment: Increase metformin to 1000 mg twice daily.\n\nCongestive heart failure.\n• Medical Reasoning: He is doing well from this standpoint. He has been compliant with his medications, dietary modifications, and regular physical activity.\n• Medical Treatment: Continue lisinopril 20 mg once daily and Lasix. Lisinopril was refilled today.\n\nPatient Agreements: The patient understands and agrees with the recommended medical treatment plan.\n\nINSTRUCTIONS\n\nThe patient will follow-up in 2 weeks.", "output_kind": "pipeline", "performance_evaluation": false, "pipeline_status": "COMPLETE", "source": {"citation": "Yim et al. (2023). ACI-BENCH: a Novel Ambient Clinical Intelligence Dataset for Benchmarking Automatic Visit Note Generation. Scientific Data. CC BY 4.0.", "label": "ACI-BENCH Train · D2N004 · CC BY 4.0", "note_sha256": "f393b02eec67f38c82042bcd90cff11f5729ee62b391e772ef2d07a5865fd4ec", "url": "https://github.com/wyim/aci-bench/blob/main/data/challenge_data/train.csv"}, "title": "Outpatient visit note (ACI-BENCH D2N004)"}, {"catalog": "ICD-10-CM FY2022 April · G06 public catalog", "codes": [{"code": "M13.89", "evidence": [{"end": 2517, "linked": true, "quote": "The patient reports increased joint pain in his bilateral knees over the past weekend. Given that his right knee x-ray was unremarkable, I believe this is an acute exacerbation of his arthritis.", "start": 2323}], "item_ids": ["q01", "q03", "q04"], "title": "Other specified arthritis, multiple sites"}, {"code": "E03.9", "evidence": [{"end": 2861, "linked": true, "quote": "Hypothyroidism.", "start": 2846}], "item_ids": ["q05"], "title": "Hypothyroidism, unspecified"}, {"code": "Z94.0", "evidence": [{"end": 3080, "linked": true, "quote": "Status post renal transplant.", "start": 3051}, {"end": 3181, "linked": true, "quote": "He is doing well and has been compliant with his immunosuppressive medications.", "start": 3102}], "item_ids": ["q06"], "title": "Kidney transplant status"}], "id": "pipeline-aci-bench-20261118-D2N002", "items": [{"candidates": [{"code": "M25.59", "rank": 1, "title": "Pain in other specified joint"}, {"code": "M25.50", "rank": 2, "title": "Pain in unspecified joint"}, {"code": "M25.80", "rank": 3, "title": "Other specified joint disorders, unspecified joint"}, {"code": "M25.9", "rank": 4, "title": "Joint disorder, unspecified"}, {"code": "M13.89", "rank": 5, "title": "Other specified arthritis, multiple sites"}], "concept": "Joint pain", "evidence": [{"end": 28, "linked": true, "quote": "Joint pain.", "start": 17}], "id": "q01", "query": "Joint pain", "tags": []}, {"candidates": [{"code": "M25.869", "rank": 1, "title": "Other specified joint disorders, unspecified knee"}, {"code": "M17.0", "rank": 2, "title": "Bilateral primary osteoarthritis of knee"}, {"code": "M17.4", "rank": 3, "title": "Other bilateral secondary osteoarthritis of knee"}, {"code": "M22.2X9", "rank": 4, "title": "Patellofemoral disorders, unspecified knee"}, {"code": "M17.9", "rank": 5, "title": "Osteoarthritis of knee, unspecified"}], "concept": "Bilateral knee pain", "evidence": [{"linked": false, "quote": "He reports that over the weekend, he was moving boxes up and down the basement stairs. By the end of the day, his knees were very painful. The pain is equal in the bilateral knees."}], "id": "q02", "query": "Bilateral knee pain", "tags": []}, {"candidates": [{"code": "M13.80", "rank": 1, "title": "Other specified arthritis, unspecified site"}, {"code": "M25.9", "rank": 2, "title": "Joint disorder, unspecified"}, {"code": "M13.89", "rank": 3, "title": "Other specified arthritis, multiple sites"}, {"code": "M13.88", "rank": 4, "title": "Other specified arthritis, other site"}, {"code": "M19.90", "rank": 5, "title": "Unspecified osteoarthritis, unspecified site"}], "concept": "Arthritis", "evidence": [{"end": 237, "linked": true, "quote": "He presents today with complaints of joint pain.", "start": 189}, {"end": 2301, "linked": true, "quote": "Arthritis.", "start": 2291}, {"end": 2517, "linked": true, "quote": "The patient reports increased joint pain in his bilateral knees over the past weekend. Given that his right knee x-ray was unremarkable, I believe this is an acute exacerbation of his arthritis.", "start": 2323}], "id": "q03", "query": "Arthritis", "tags": []}, {"candidates": [{"code": "M13.80", "rank": 1, "title": "Other specified arthritis, unspecified site"}, {"code": "M13.88", "rank": 2, "title": "Other specified arthritis, other site"}, {"code": "M06.80", "rank": 3, "title": "Other specified rheumatoid arthritis, unspecified site"}, {"code": "M13.89", "rank": 4, "title": "Other specified arthritis, multiple sites"}, {"code": "M06.8A", "rank": 5, "title": "Other specified rheumatoid arthritis, other specified site"}], "concept": "Acute exacerbation of arthritis", "evidence": [{"end": 2517, "linked": true, "quote": "The patient reports increased joint pain in his bilateral knees over the past weekend. Given that his right knee x-ray was unremarkable, I believe this is an acute exacerbation of his arthritis.", "start": 2323}], "id": "q04", "query": "Acute exacerbation of arthritis", "tags": ["uncertain"]}, {"candidates": [{"code": "E03.9", "rank": 1, "title": "Hypothyroidism, unspecified"}, {"code": "E03.8", "rank": 2, "title": "Other specified hypothyroidism"}, {"code": "E03.5", "rank": 3, "title": "Myxedema coma"}, {"code": "E07.9", "rank": 4, "title": "Disorder of thyroid, unspecified"}, {"code": "E02", "rank": 5, "title": "Subclinical iodine-deficiency hypothyroidism"}], "concept": "Hypothyroidism", "evidence": [{"end": 237, "linked": true, "quote": "He presents today with complaints of joint pain.", "start": 189}, {"end": 2861, "linked": true, "quote": "Hypothyroidism.", "start": 2846}, {"linked": false, "quote": "He is doing well on Synthroid and is asymptomatic at this time."}], "id": "q05", "query": "Hypothyroidism", "tags": []}, {"candidates": [{"code": "Z94.0", "rank": 1, "title": "Kidney transplant status"}, {"code": "Z48.22", "rank": 2, "title": "Encounter for aftercare following kidney transplant"}, {"code": "Z94.89", "rank": 3, "title": "Other transplanted organ and tissue status"}, {"code": "Z94.9", "rank": 4, "title": "Transplanted organ and tissue status, unspecified"}, {"code": "T86.10", "rank": 5, "title": "Unspecified complication of kidney transplant"}], "concept": "Kidney transplant status post", "evidence": [{"end": 237, "linked": true, "quote": "He presents today with complaints of joint pain.", "start": 189}, {"end": 3080, "linked": true, "quote": "Status post renal transplant.", "start": 3051}, {"end": 3181, "linked": true, "quote": "He is doing well and has been compliant with his immunosuppressive medications.", "start": 3102}], "id": "q06", "query": "Kidney transplant status post", "tags": []}, {"candidates": [{"code": "R60.9", "rank": 1, "title": "Edema, unspecified"}, {"code": "M25.461", "rank": 2, "title": "Effusion, right knee"}, {"code": "R60.0", "rank": 3, "title": "Localized edema"}, {"code": "M25.861", "rank": 4, "title": "Other specified joint disorders, right knee"}, {"code": "M25.469", "rank": 5, "title": "Effusion, unspecified knee"}], "concept": "Edema of right knee", "evidence": [{"end": 1835, "linked": true, "quote": "There is edema and erythema of the right knee with pain to palpation.", "start": 1766}], "id": "q07", "query": "Edema of right knee", "tags": []}, {"candidates": [{"code": "L53.9", "rank": 1, "title": "Erythematous condition, unspecified"}, {"code": "L53.8", "rank": 2, "title": "Other specified erythematous conditions"}, {"code": "L54", "rank": 3, "title": "Erythema in diseases classified elsewhere"}, {"code": "L59.0", "rank": 4, "title": "Erythema ab igne [dermatitis ab igne]"}, {"code": "M12.861", "rank": 5, "title": "Other specific arthropathies, not elsewhere classified, right knee"}], "concept": "Erythema of right knee", "evidence": [{"end": 1835, "linked": true, "quote": "There is edema and erythema of the right knee with pain to palpation.", "start": 1766}], "id": "q08", "query": "Erythema of right knee", "tags": []}, {"candidates": [{"code": "M25.861", "rank": 1, "title": "Other specified joint disorders, right knee"}, {"code": "M23.91", "rank": 2, "title": "Unspecified internal derangement of right knee"}, {"code": "M12.861", "rank": 3, "title": "Other specific arthropathies, not elsewhere classified, right knee"}, {"code": "M13.861", "rank": 4, "title": "Other specified arthritis, right knee"}, {"code": "M13.161", "rank": 5, "title": "Monoarthritis, not elsewhere classified, right knee"}], "concept": "Pain to palpation of right knee", "evidence": [{"end": 1835, "linked": true, "quote": "There is edema and erythema of the right knee with pain to palpation.", "start": 1766}], "id": "q09", "query": "Pain to palpation of right knee", "tags": []}, {"candidates": [{"code": "M24.561", "rank": 1, "title": "Contracture, right knee"}, {"code": "M25.661", "rank": 2, "title": "Stiffness of right knee, not elsewhere classified"}, {"code": "M25.669", "rank": 3, "title": "Stiffness of unspecified knee, not elsewhere classified"}, {"code": "M25.861", "rank": 4, "title": "Other specified joint disorders, right knee"}, {"code": "M24.569", "rank": 5, "title": "Contracture, unspecified knee"}], "concept": "Decreased range of motion of right knee", "evidence": [{"end": 1865, "linked": true, "quote": "Range of motion is decreased.", "start": 1836}], "id": "q10", "query": "Decreased range of motion of right knee", "tags": []}], "note": "CHIEF COMPLAINT\n\nJoint pain.\n\nHISTORY OF PRESENT ILLNESS\n\nAndrew Perez is a 62-year-old male with a past medical history significant for a kidney transplant, hypothyroidism, and arthritis. He presents today with complaints of joint pain.\n\nThe patient reports that over the weekend, he was moving boxes up and down the basement stairs. By the end of the day, his knees were very painful. The pain is equal in the bilateral knees. He states that he has had some knee problems in the past, but he believes that it was due to the repetition and the weight of the boxes. He states that the pain does not prevent him from doing his activities of daily living. By the end of the day on Saturday, his knee soreness interrupted his sleep. The patient has taken Tylenol and iced his knees for a short period of time, but nothing really seemed to help.\n\nThe patient states that he had a kidney transplant a few years ago for some polycystic kidneys. He notes that he saw Dr. Gutierrez a couple of weeks ago, and everything was normal at that time. The patient continues to utilize his immunosuppressant medications.\n\nRegarding his hypothyroidism, the patient states that he is doing well. He has continued to utilize Synthroid regularly.\n\nIn regards to his arthritis, the patient states that occasionally he has pain in his elbow, but nothing out of the ordinary.\n\nHe denies any other symptoms such as fever, chills, muscle aches, nausea, vomiting, diarrhea, fatigue, and weight loss.\n\nREVIEW OF SYSTEMS\n\n• Constitutional: Denies fevers, chills, or weight loss.\n• Musculoskeletal: Denies muscle pain. Endorses joint pain in the bilateral knees.\n• Neurological: Denies headaches.\n\nPHYSICAL EXAMINATION\n\n• Cardiovascular: 2/6 systolic ejection murmur, stable.\n• Musculoskeletal: There is edema and erythema of the right knee with pain to palpation. Range of motion is decreased. Left knee exam is normal.\n\nRESULTS\n\nX-ray of the right knee is unremarkable. Good bony alignment. No acute fractures.\n\nLabs: Within normal limits. White blood cell count is within normal limits. Kidney function is normal.\n\nASSESSMENT AND PLAN\n\nAndrew Perez is a 62-year-old male with a past medical history significant for a kidney transplant, hypothyroidism, and arthritis. He presents today with complaints of joint pain.\n\nArthritis.\n• Medical Reasoning: The patient reports increased joint pain in his bilateral knees over the past weekend. Given that his right knee x-ray was unremarkable, I believe this is an acute exacerbation of his arthritis.\n• Additional Testing: We will order an autoimmune panel for further evaluation.\n• Medical Treatment: Initiate Ultram 50 mg every 6 hours as needed.\n• Patient Education and Counseling: I advised the patient to rest his knees. If his symptoms persist, we can consider further imaging and possibly a referral to physical therapy.\n\nHypothyroidism.\n• Medical Reasoning: The patient is doing well on Synthroid and is asymptomatic at this time.\n• Additional Testing: We will order a thyroid panel.\n• Medical Treatment: Continue Synthroid.\n\nStatus post renal transplant.\n• Medical Reasoning: He is doing well and has been compliant with his immunosuppressive medications. On recent labs, his white blood cell count was within a normal limits and his kidney function is stable.\n• Medical Treatment: Continue current regimen.\n\nPatient Agreements: The patient understands and agrees with the recommended medical treatment plan.", "output_kind": "pipeline", "performance_evaluation": false, "pipeline_status": "COMPLETE", "source": {"citation": "Yim et al. (2023). ACI-BENCH: a Novel Ambient Clinical Intelligence Dataset for Benchmarking Automatic Visit Note Generation. Scientific Data. CC BY 4.0.", "label": "ACI-BENCH Train · D2N002 · CC BY 4.0", "note_sha256": "8dfb04022ddd09ff8a64aacfa0e3cf4abc999c0e41f69cbf400ab18b11038325", "url": "https://github.com/wyim/aci-bench/blob/main/data/challenge_data/train.csv"}, "title": "Outpatient visit note (ACI-BENCH D2N002)"}, {"catalog": "ICD-10-CM FY2022 April · G06 public catalog", "codes": [{"code": "I50.22", "evidence": [{"end": 2248, "linked": true, "quote": "Congestive heart failure.", "start": 2223}, {"end": 2461, "linked": true, "quote": "previous year's echocardiogram demonstrated a reduced ejection fraction of 45%, as well as some mitral regurgitation.", "start": 2344}], "item_ids": ["q01"], "title": "Chronic systolic (congestive) heart failure"}, {"code": "F32.A", "evidence": [{"end": 2902, "linked": true, "quote": "Depression.", "start": 2891}, {"end": 2962, "linked": true, "quote": "She is doing well with weekly therapy.", "start": 2924}], "item_ids": ["q02"], "title": "Depression, unspecified"}, {"code": "I10", "evidence": [{"end": 230, "linked": true, "quote": "hypertension who presents for her annual exam.", "start": 184}], "item_ids": ["q03", "q07"], "title": "Essential (primary) hypertension"}, {"code": "J30.2", "evidence": [{"end": 1465, "linked": true, "quote": "Endorses nasal congestion from allergies.", "start": 1424}], "item_ids": ["q04"], "title": "Other seasonal allergic rhinitis"}, {"code": "R01.1", "evidence": [{"end": 1785, "linked": true, "quote": "Grade 3/6 systolic ejection murmur.", "start": 1750}], "item_ids": ["q05"], "title": "Cardiac murmur, unspecified"}, {"code": "E78.5", "evidence": [{"end": 2027, "linked": true, "quote": "Lipid panel: Elevated cholesterol.", "start": 1993}], "item_ids": ["q10"], "title": "Hyperlipidemia, unspecified"}], "id": "pipeline-aci-bench-20261118-D2N001", "items": [{"candidates": [{"code": "I50.22", "rank": 1, "title": "Chronic systolic (congestive) heart failure"}, {"code": "I50.20", "rank": 2, "title": "Unspecified systolic (congestive) heart failure"}, {"code": "I42.0", "rank": 3, "title": "Dilated cardiomyopathy"}, {"code": "I25.5", "rank": 4, "title": "Ischemic cardiomyopathy"}, {"code": "I50.21", "rank": 5, "title": "Acute systolic (congestive) heart failure"}], "concept": "Congestive heart failure", "evidence": [{"end": 2248, "linked": true, "quote": "Congestive heart failure.", "start": 2223}, {"end": 2461, "linked": true, "quote": "previous year's echocardiogram demonstrated a reduced ejection fraction of 45%, as well as some mitral regurgitation.", "start": 2344}], "id": "q01", "query": "Congestive heart failure with decreased ejection fraction and mitral regurgitation", "tags": ["history"]}, {"candidates": [{"code": "F32.A", "rank": 1, "title": "Depression, unspecified"}, {"code": "F32.9", "rank": 2, "title": "Major depressive disorder, single episode, unspecified"}, {"code": "F32.89", "rank": 3, "title": "Other specified depressive episodes"}, {"code": "F33.8", "rank": 4, "title": "Other recurrent depressive disorders"}, {"code": "F33.9", "rank": 5, "title": "Major depressive disorder, recurrent, unspecified"}], "concept": "Depression", "evidence": [{"end": 2902, "linked": true, "quote": "Depression.", "start": 2891}, {"end": 2962, "linked": true, "quote": "She is doing well with weekly therapy.", "start": 2924}], "id": "q02", "query": "Depression with weekly therapy", "tags": ["history"]}, {"candidates": [{"code": "I10", "rank": 1, "title": "Essential (primary) hypertension"}, {"code": "Z91.14", "rank": 2, "title": "Patient's other noncompliance with medication regimen"}, {"code": "I15.8", "rank": 3, "title": "Other secondary hypertension"}, {"code": "Z91.120", "rank": 4, "title": "Patient's intentional underdosing of medication regimen due to financial hardship"}, {"code": "I16.0", "rank": 5, "title": "Hypertensive urgency"}], "concept": "Hypertension", "evidence": [{"end": 230, "linked": true, "quote": "hypertension who presents for her annual exam.", "start": 184}, {"linked": false, "quote": "She has been inconsistent with the use of her medication. She attributes elevations in her blood pressure to increased stress."}], "id": "q03", "query": "Hypertension with medication noncompliance", "tags": ["history"]}, {"candidates": [{"code": "J30.2", "rank": 1, "title": "Other seasonal allergic rhinitis"}, {"code": "J30.1", "rank": 2, "title": "Allergic rhinitis due to pollen"}, {"code": "J30.9", "rank": 3, "title": "Allergic rhinitis, unspecified"}, {"code": "J30.89", "rank": 4, "title": "Other allergic rhinitis"}, {"code": "R09.81", "rank": 5, "title": "Nasal congestion"}], "concept": "Nasal congestion from allergies", "evidence": [{"linked": false, "quote": "Endorses nasal congestion from some of the fall allergies."}], "id": "q04", "query": "Nasal congestion due to seasonal allergies", "tags": []}, {"candidates": [{"code": "I42.1", "rank": 1, "title": "Obstructive hypertrophic cardiomyopathy"}, {"code": "I35.0", "rank": 2, "title": "Nonrheumatic aortic (valve) stenosis"}, {"code": "R01.1", "rank": 3, "title": "Cardiac murmur, unspecified"}, {"code": "R01.0", "rank": 4, "title": "Benign and innocent cardiac murmurs"}, {"code": "I35.9", "rank": 5, "title": "Nonrheumatic aortic valve disorder, unspecified"}], "concept": "Grade 3/6 systolic ejection murmur", "evidence": [{"end": 1785, "linked": true, "quote": "Grade 3/6 systolic ejection murmur.", "start": 1750}], "id": "q05", "query": "Grade 3/6 systolic ejection murmur", "tags": []}, {"candidates": [{"code": "R60.9", "rank": 1, "title": "Edema, unspecified"}, {"code": "I50.1", "rank": 2, "title": "Left ventricular failure, unspecified"}, {"code": "E87.70", "rank": 3, "title": "Fluid overload, unspecified"}, {"code": "R60.0", "rank": 4, "title": "Localized edema"}, {"code": "E87.79", "rank": 5, "title": "Other fluid overload"}], "concept": "Pitting edema of bilateral lower extremities", "evidence": [{"end": 1838, "linked": true, "quote": "1+ pitting edema of the bilateral lower extremities.", "start": 1786}], "id": "q06", "query": "1+ pitting edema of bilateral lower extremities", "tags": []}, {"candidates": [{"code": "I10", "rank": 1, "title": "Essential (primary) hypertension"}, {"code": "I16.0", "rank": 2, "title": "Hypertensive urgency"}, {"code": "Z01.31", "rank": 3, "title": "Encounter for examination of blood pressure with abnormal findings"}, {"code": "I15.9", "rank": 4, "title": "Secondary hypertension, unspecified"}, {"code": "I15.8", "rank": 5, "title": "Other secondary hypertension"}], "concept": "Elevated blood pressure", "evidence": [{"end": 1884, "linked": true, "quote": "Blood Pressure: Elevated.", "start": 1859}, {"linked": false, "quote": "She has been inconsistent with the use of her medication. She attributes elevations in her blood pressure to increased stress."}], "id": "q07", "query": "Elevated blood pressure with medication noncompliance", "tags": []}, {"candidates": [{"code": "I42.0", "rank": 1, "title": "Dilated cardiomyopathy"}, {"code": "I42.9", "rank": 2, "title": "Cardiomyopathy, unspecified"}, {"code": "I50.1", "rank": 3, "title": "Left ventricular failure, unspecified"}, {"code": "I50.9", "rank": 4, "title": "Heart failure, unspecified"}, {"code": "I25.5", "rank": 5, "title": "Ischemic cardiomyopathy"}], "concept": "Decreased ejection fraction of 45%", "evidence": [{"end": 1958, "linked": true, "quote": "Echocardiogram demonstrates decreased ejection fraction of 45%.", "start": 1895}], "id": "q08", "query": "Decreased left ventricular ejection fraction of 45%", "tags": []}, {"candidates": [{"code": "I34.8", "rank": 1, "title": "Other nonrheumatic mitral valve disorders"}, {"code": "I34.0", "rank": 2, "title": "Nonrheumatic mitral (valve) insufficiency"}, {"code": "I34.9", "rank": 3, "title": "Nonrheumatic mitral valve disorder, unspecified"}, {"code": "I05.9", "rank": 4, "title": "Rheumatic mitral valve disease, unspecified"}, {"code": "I05.8", "rank": 5, "title": "Other rheumatic mitral valve diseases"}], "concept": "Mitral regurgitation", "evidence": [{"end": 1991, "linked": true, "quote": "Echocardiogram demonstrates decreased ejection fraction of 45%. Mitral regurgitation is present.", "start": 1895}], "id": "q09", "query": "Mitral regurgitation", "tags": []}, {"candidates": [{"code": "E78.00", "rank": 1, "title": "Pure hypercholesterolemia, unspecified"}, {"code": "E78.49", "rank": 2, "title": "Other hyperlipidemia"}, {"code": "E78.5", "rank": 3, "title": "Hyperlipidemia, unspecified"}, {"code": "E78.89", "rank": 4, "title": "Other lipoprotein metabolism disorders"}, {"code": "E78.01", "rank": 5, "title": "Familial hypercholesterolemia"}], "concept": "Elevated cholesterol", "evidence": [{"end": 2027, "linked": true, "quote": "Lipid panel: Elevated cholesterol.", "start": 1993}], "id": "q10", "query": "Elevated total cholesterol", "tags": []}], "note": "CHIEF COMPLAINT\n\nAnnual exam.\n\nHISTORY OF PRESENT ILLNESS\n\nMartha Collins is a 50-year-old female with a past medical history significant for congestive heart failure, depression, and hypertension who presents for her annual exam. It has been a year since I last saw the patient.\n\nThe patient has been traveling a lot recently since things have gotten a bit better. She reports that she got her COVID-19 vaccine so she feels safer about traveling. She has been doing a lot of hiking.\n\nShe reports that she is staying active. She has continued watching her diet and she is doing well with that. The patient states that she is avoiding salty foods that she likes to eat. She has continued utilizing her medications. The patient denies any chest pain, shortness of breath, or swelling in her legs.\n\nRegarding her depression, she reports that she has been going to therapy every week for the past year. This has been really helpful for her. She denies suicidal or homicidal ideation.\n\nThe patient reports that she is still forgetting to take her blood pressure medication. She has noticed that when work gets more stressful, her blood pressure goes up. She reports that work has been going okay, but it has been a lot of long hours lately.\n\nShe endorses some nasal congestion from some of the fall allergies. She denies any other symptoms of nausea, vomiting, abdominal pain.\n\nREVIEW OF SYSTEMS\n\n• Ears, Nose, Mouth and Throat: Endorses nasal congestion from allergies.\n• Cardiovascular: Denies chest pain or dyspnea on exertion.\n• Respiratory: Denies shortness of breath.\n• Gastrointestinal: Denies abdominal pain, nausea, or vomiting.\n• Psychiatric: Endorses depression. Denies suicidal or homicidal ideations.\n\nPHYSICAL EXAMINATION\n\n• Cardiovascular: Grade 3/6 systolic ejection murmur.\n1+ pitting edema of the bilateral lower extremities.\n\nVITALS REVIEWED\n\n• Blood Pressure: Elevated.\n\nRESULTS\n\nEchocardiogram demonstrates decreased ejection fraction of 45%. Mitral regurgitation is present.\n\nLipid panel: Elevated cholesterol.\n\nASSESSMENT AND PLAN\n\nMartha Collins is a 50-year-old female with a past medical history significant for congestive heart failure, depression, and hypertension who presents for her annual exam.\n\nCongestive heart failure.\n• Medical Reasoning: She has been compliant with her medication and dietary modifications. Her previous year's echocardiogram demonstrated a reduced ejection fraction of 45%, as well as some mitral regurgitation. Her cholesterol levels were slightly elevated on her lipid panel from last year.\n• Additional Testing: We will order a repeat echocardiogram. We will also repeat a lipid panel this year.\n• Medical Treatment: She will continue with her current medications. We will increase her lisinopril to 40 mg daily and initiate Lasix 20 mg daily.\n• Patient Education and Counseling: I encouraged her to continue with dietary modifications.\n\nDepression.\n• Medical Reasoning: She is doing well with weekly therapy.\n\nHypertension.\n• Medical Reasoning: She has been compliant with dietary modifications but has been inconsistent with the use of her medication. She attributes elevations in her blood pressure to increased stress.\n• Medical Treatment: We will increase her lisinopril to 40 mg daily as noted above.\n• Patient Education and Counseling: I encouraged the patient to take her lisinopril as directed. I advised her to monitor her blood pressures at home for the next week and report them to me.\n\nHealthcare maintenance.\n• Medical Reasoning: The patient is due for her routine mammogram.\n• Additional Testing: We will order a mammogram and have this scheduled for her.\n\nPatient Agreements: The patient understands and agrees with the recommended medical treatment plan.\n", "output_kind": "pipeline", "performance_evaluation": false, "pipeline_status": "COMPLETE", "source": {"citation": "Yim et al. (2023). ACI-BENCH: a Novel Ambient Clinical Intelligence Dataset for Benchmarking Automatic Visit Note Generation. Scientific Data. CC BY 4.0.", "label": "ACI-BENCH Train · D2N001 · CC BY 4.0", "note_sha256": "842174f57d05a0c62d651f6d80572224a6fc79100bdfb8007fa396e4c5a3df41", "url": "https://github.com/wyim/aci-bench/blob/main/data/challenge_data/train.csv"}, "title": "Outpatient visit note (ACI-BENCH D2N001)"}];</script>
+<script>
+(function () {
+  'use strict';
+
+  var EXAMPLES = window.ICD_EXAMPLES || [];
+  var TAG_LABEL = { negated: 'negated', uncertain: 'uncertain', history: 'history', family_history: 'family history' };
+  var state = { ex: null, active: null, decisions: {}, added: [], view: 'codes', openAlt: {} };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text !== undefined && text !== null) { e.textContent = text; }
+    return e;
+  }
+  function reduceMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  function storeKey() { return 'icd-review:' + state.ex.id; }
+  function save() {
+    try {
+      window.localStorage.setItem(storeKey(), JSON.stringify({ decisions: state.decisions, added: state.added }));
+    } catch (e) { /* the page works without storage */ }
+  }
+  function load() {
+    try {
+      var raw = window.localStorage.getItem(storeKey());
+      if (!raw) { return; }
+      var obj = JSON.parse(raw);
+      if (obj && typeof obj === 'object') {
+        state.decisions = obj.decisions && typeof obj.decisions === 'object' ? obj.decisions : {};
+        state.added = Array.isArray(obj.added) ? obj.added : [];
+      }
+    } catch (e) { state.decisions = {}; state.added = []; }
+  }
+
+  function itemById(id) {
+    var items = state.ex.items;
+    for (var i = 0; i < items.length; i++) { if (items[i].id === id) { return items[i]; } }
+    return null;
+  }
+  function allCodes() {
+    // codes added by the reviewer follow the model's codes
+    var out = [];
+    state.ex.codes.forEach(function (c) { out.push({ code: c.code, title: c.title, item_ids: c.item_ids || [], evidence: c.evidence || [], origin: 'model' }); });
+    state.added.forEach(function (a) { out.push({ code: a.code, title: a.title, item_ids: a.item_ids || [], evidence: [], origin: 'reviewer' }); });
+    return out;
+  }
+  function codeEntry(code) {
+    var list = allCodes();
+    for (var i = 0; i < list.length; i++) { if (list[i].code === code) { return list[i]; } }
+    return null;
+  }
+  function decisionOf(code) { return state.decisions[code] || 'pending'; }
+
+  function activeRefs() {
+    var refs = {};
+    var a = state.active;
+    if (!a) { return refs; }
+    if (a.type === 'code') {
+      refs['code:' + a.id] = true;
+      var entry = codeEntry(a.id);
+      if (entry) { entry.item_ids.forEach(function (q) { refs['item:' + q] = true; }); }
+    } else {
+      refs['item:' + a.id] = true;
+    }
+    return refs;
+  }
+
+  // ---------- note ----------
+  function evidenceSpans() {
+    var spans = [];
+    state.ex.items.forEach(function (it) {
+      (it.evidence || []).forEach(function (ev) {
+        if (ev.linked) { spans.push({ start: ev.start, end: ev.end, ref: 'item:' + it.id }); }
+      });
+    });
+    state.ex.codes.forEach(function (c) {
+      (c.evidence || []).forEach(function (ev) {
+        if (ev.linked) { spans.push({ start: ev.start, end: ev.end, ref: 'code:' + c.code }); }
+      });
+    });
+    return spans;
+  }
+  function renderNote() {
+    var text = state.ex.note;
+    var spans = evidenceSpans();
+    var cuts = {};
+    cuts[0] = true; cuts[text.length] = true;
+    spans.forEach(function (s) { cuts[s.start] = true; cuts[s.end] = true; });
+    var pts = Object.keys(cuts).map(Number).sort(function (x, y) { return x - y; });
+    var body = $('note-body');
+    body.textContent = '';
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i], b = pts[i + 1];
+      if (b <= a) { continue; }
+      var refs = [];
+      for (var j = 0; j < spans.length; j++) {
+        if (spans[j].start <= a && spans[j].end >= b && refs.indexOf(spans[j].ref) === -1) { refs.push(spans[j].ref); }
+      }
+      var piece = text.slice(a, b);
+      if (!refs.length) {
+        body.appendChild(document.createTextNode(piece));
+      } else {
+        var m = el('mark', 'ev', piece);
+        m.setAttribute('data-refs', refs.join(' '));
+        m.setAttribute('data-start', String(a));
+        m.setAttribute('role', 'button');
+        m.tabIndex = 0;
+        body.appendChild(m);
+      }
+    }
+    paintNote();
+  }
+  function paintNote() {
+    var refs = activeRefs();
+    var hasActive = !!state.active;
+    var marks = $('note-body').querySelectorAll('mark.ev');
+    for (var i = 0; i < marks.length; i++) {
+      var list = (marks[i].getAttribute('data-refs') || '').split(' ');
+      var on = false;
+      for (var j = 0; j < list.length; j++) { if (refs[list[j]]) { on = true; break; } }
+      marks[i].classList.toggle('on', on);
+      marks[i].classList.toggle('dim', hasActive && !on);
+    }
+  }
+  function scrollNoteTo(start) {
+    var marks = $('note-body').querySelectorAll('mark.ev');
+    for (var i = 0; i < marks.length; i++) {
+      if (Number(marks[i].getAttribute('data-start')) >= start) {
+        marks[i].scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' });
+        return;
+      }
+    }
+  }
+  function scrollNoteToActive() {
+    var first = $('note-body').querySelector('mark.ev.on');
+    if (first) { first.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); }
+  }
+  function onMarkActivate(mark) {
+    var list = (mark.getAttribute('data-refs') || '').split(' ');
+    var target = null;
+    for (var i = 0; i < list.length; i++) { if (list[i].indexOf('code:') === 0) { target = { type: 'code', id: list[i].slice(5) }; break; } }
+    if (!target && list.length) { target = { type: 'item', id: list[0].slice(5) }; }
+    if (!target) { return; }
+    setView(target.type === 'code' ? 'codes' : 'items');
+    setActive(target, false);
+    var card = document.querySelector('[data-card="' + target.type + ':' + cssEscape(target.id) + '"]');
+    if (card) { card.scrollIntoView({ block: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); }
+  }
+  function cssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+  // ---------- evidence quotes ----------
+  function quoteNode(ev) {
+    var q;
+    if (ev.linked) {
+      q = el('button', 'quote');
+      q.type = 'button';
+      q.addEventListener('click', function (e) { e.stopPropagation(); scrollNoteTo(ev.start); });
+    } else {
+      q = el('div', 'quote unlinked');
+    }
+    q.appendChild(el('span', 'quote-text', '“' + ev.quote + '”'));
+    q.appendChild(el('span', ev.linked ? 'chip' : 'chip warn', ev.linked ? 'found in note' : 'not found in note'));
+    return q;
+  }
+
+  // ---------- suggested codes ----------
+  function renderCodes() {
+    var view = $('view-codes');
+    view.textContent = '';
+    var list = allCodes();
+    if (!list.length) { view.appendChild(el('p', 'meta', 'No codes were suggested.')); return; }
+    list.forEach(function (c) { view.appendChild(codeCard(c)); });
+  }
+  function codeCard(c) {
+    var d = decisionOf(c.code);
+    var isActive = state.active && state.active.type === 'code' && state.active.id === c.code;
+    var card = el('article', 'card' + (d !== 'pending' ? ' ' + d : '') + (isActive ? ' active' : ''));
+    card.setAttribute('data-card', 'code:' + c.code);
+
+    var head = el('button', 'card-head');
+    head.type = 'button';
+    head.setAttribute('aria-label', 'Show evidence for ' + c.code + ' ' + c.title);
+    head.appendChild(el('span', 'code', c.code));
+    head.appendChild(el('span', 'code-title', c.title));
+    head.appendChild(el('span', c.origin === 'model' ? 'chip' : 'chip ok', c.origin === 'model' ? 'Suggested' : 'Added by reviewer'));
+    head.addEventListener('click', function () { setActive({ type: 'code', id: c.code }, true); });
+    card.appendChild(head);
+
+    var concepts = c.item_ids.map(function (q) { var it = itemById(q); return it ? it.concept : q; });
+    if (concepts.length) {
+      var meta = el('p', 'meta');
+      meta.appendChild(document.createTextNode('Concept: '));
+      meta.appendChild(el('b', null, concepts.join(', ')));
+      card.appendChild(meta);
+    }
+    if (c.evidence.length) {
+      var qs = el('div', 'quotes');
+      c.evidence.forEach(function (ev) { qs.appendChild(quoteNode(ev)); });
+      card.appendChild(qs);
+    } else if (c.origin === 'reviewer') {
+      card.appendChild(el('p', 'meta', 'Chosen by the reviewer from the candidate list. Its evidence is that of the concept.'));
+    }
+
+    var actions = el('div', 'actions');
+    var acc = el('button', 'btn accept', 'Accept');
+    acc.type = 'button';
+    acc.setAttribute('aria-pressed', d === 'accepted' ? 'true' : 'false');
+    acc.addEventListener('click', function () { decide(c.code, d === 'accepted' ? 'pending' : 'accepted'); });
+    var rej = el('button', 'btn reject', 'Reject');
+    rej.type = 'button';
+    rej.setAttribute('aria-pressed', d === 'rejected' ? 'true' : 'false');
+    rej.addEventListener('click', function () { decide(c.code, d === 'rejected' ? 'pending' : 'rejected'); });
+    actions.appendChild(acc);
+    actions.appendChild(rej);
+
+    var nAlt = 0;
+    c.item_ids.forEach(function (q) { var it = itemById(q); if (it) { nAlt += (it.candidates || []).length; } });
+    if (nAlt) {
+      var open = !!state.openAlt[c.code];
+      var tog = el('button', 'btn link', open ? 'Hide candidates' : 'Other candidates (' + nAlt + ')');
+      tog.type = 'button';
+      tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+      tog.addEventListener('click', function () { state.openAlt[c.code] = !open; renderCodes(); });
+      actions.appendChild(tog);
+    }
+    if (c.origin === 'reviewer') {
+      var rm = el('button', 'btn link', 'Remove');
+      rm.type = 'button';
+      rm.addEventListener('click', function () { removeAdded(c.code); });
+      actions.appendChild(rm);
+    }
+    card.appendChild(actions);
+
+    if (state.openAlt[c.code]) {
+      var alts = el('div', 'alts');
+      c.item_ids.forEach(function (q) {
+        var it = itemById(q);
+        if (!it) { return; }
+        alts.appendChild(el('p', 'alts-title', 'Candidates for “' + it.concept + '” (query: ' + it.query + ')'));
+        alts.appendChild(candList(it, c.code));
+      });
+      card.appendChild(alts);
+    }
+    return card;
+  }
+  function candList(it, currentCode) {
+    var ul = el('ul', 'cand-list');
+    (it.candidates || []).forEach(function (cand) {
+      var present = !!codeEntry(cand.code);
+      var li = el('li', 'cand' + (present ? ' picked' : ''));
+      li.appendChild(el('span', 'rank', String(cand.rank)));
+      li.appendChild(el('span', 'ccode', cand.code));
+      li.appendChild(el('span', 'ctitle', cand.title));
+      if (present) {
+        li.appendChild(el('span', 'chip', cand.code === currentCode ? 'this code' : 'in the list'));
+      } else {
+        var box = el('span', 'actions');
+        var add = el('button', 'btn', 'Add');
+        add.type = 'button';
+        add.setAttribute('aria-label', 'Add ' + cand.code);
+        add.addEventListener('click', function () { addCode(cand, it.id, null); });
+        box.appendChild(add);
+        if (currentCode) {
+          var swap = el('button', 'btn', 'Replace');
+          swap.type = 'button';
+          swap.setAttribute('aria-label', 'Replace ' + currentCode + ' with ' + cand.code);
+          swap.addEventListener('click', function () { addCode(cand, it.id, currentCode); });
+          box.appendChild(swap);
+        }
+        li.appendChild(box);
+      }
+      ul.appendChild(li);
+    });
+    return ul;
+  }
+
+  // ---------- concepts and candidates ----------
+  function renderItems() {
+    var view = $('view-items');
+    view.textContent = '';
+    state.ex.items.forEach(function (it) {
+      var isActive = state.active && state.active.type === 'item' && state.active.id === it.id;
+      var card = el('article', 'card' + (isActive ? ' active' : ''));
+      card.setAttribute('data-card', 'item:' + it.id);
+      var head = el('button', 'card-head');
+      head.type = 'button';
+      head.appendChild(el('span', 'code', it.id));
+      head.appendChild(el('span', 'code-title', it.concept));
+      (it.tags || []).forEach(function (t) { head.appendChild(el('span', 'chip warn', TAG_LABEL[t] || t)); });
+      head.addEventListener('click', function () { setActive({ type: 'item', id: it.id }, true); });
+      card.appendChild(head);
+      var meta = el('p', 'meta');
+      meta.appendChild(document.createTextNode('Query: '));
+      meta.appendChild(el('b', null, it.query));
+      card.appendChild(meta);
+      if ((it.evidence || []).length) {
+        var qs = el('div', 'quotes');
+        it.evidence.forEach(function (ev) { qs.appendChild(quoteNode(ev)); });
+        card.appendChild(qs);
+      }
+      if ((it.candidates || []).length) {
+        var alts = el('div', 'alts');
+        alts.appendChild(el('p', 'alts-title', it.candidates.length + ' candidates (by reranker score)'));
+        alts.appendChild(candList(it, null));
+        card.appendChild(alts);
+      }
+      view.appendChild(card);
+    });
+  }
+
+  // ---------- summary ----------
+  function renderStages() {
+    var ex = state.ex;
+    var itemQuotes = 0, itemLinked = 0, candTotal = 0, distinct = {}, codeQuotes = 0, codeLinked = 0, perItem = 0;
+    ex.items.forEach(function (it) {
+      (it.evidence || []).forEach(function (ev) { itemQuotes++; if (ev.linked) { itemLinked++; } });
+      var n = (it.candidates || []).length;
+      candTotal += n;
+      if (n > perItem) { perItem = n; }
+      (it.candidates || []).forEach(function (c) { distinct[c.code] = true; });
+    });
+    ex.codes.forEach(function (c) {
+      (c.evidence || []).forEach(function (ev) { codeQuotes++; if (ev.linked) { codeLinked++; } });
+    });
+    var rows = [
+      ['Step 1 · Concept extraction', ex.items.length + ' concepts', itemLinked + ' of ' + itemQuotes + ' quotes found in the note'],
+      ['Step 2 · Candidate retrieval', Object.keys(distinct).length + ' candidates', 'up to ' + perItem + ' per concept, from the full code set'],
+      ['Step 3 · Code selection', ex.codes.length + ' suggested codes', codeLinked + ' of ' + codeQuotes + ' quotes found in the note']
+    ];
+    var ol = $('stages');
+    ol.textContent = '';
+    rows.forEach(function (r) {
+      var li = el('li', 'stage');
+      li.appendChild(el('span', 'stage-name', r[0]));
+      li.appendChild(el('span', 'stage-main', r[1]));
+      li.appendChild(el('span', 'stage-sub', r[2]));
+      ol.appendChild(li);
+    });
+  }
+  function renderCounts() {
+    var acc = 0, rej = 0, pen = 0;
+    allCodes().forEach(function (c) {
+      var d = decisionOf(c.code);
+      if (d === 'accepted') { acc++; } else if (d === 'rejected') { rej++; } else { pen++; }
+    });
+    var box = $('counts');
+    box.textContent = '';
+    box.appendChild(el('span', 'chip ok', 'Accepted ' + acc));
+    box.appendChild(el('span', 'chip no', 'Rejected ' + rej));
+    box.appendChild(el('span', 'chip', 'Unreviewed ' + pen));
+  }
+
+  // ---------- actions ----------
+  function setActive(target, scrollNote) {
+    var same = state.active && target && state.active.type === target.type && state.active.id === target.id;
+    state.active = same && scrollNote ? null : target;
+    renderCodes();
+    renderItems();
+    paintNote();
+    if (state.active && scrollNote) { scrollNoteToActive(); }
+  }
+  function decide(code, value) {
+    if (value === 'pending') { delete state.decisions[code]; } else { state.decisions[code] = value; }
+    save();
+    renderCodes();
+    renderCounts();
+  }
+  function addCode(cand, itemId, replaceCode) {
+    if (!codeEntry(cand.code)) {
+      state.added.push({ code: cand.code, title: cand.title, item_ids: [itemId] });
+      state.decisions[cand.code] = 'accepted';
+    }
+    if (replaceCode) { state.decisions[replaceCode] = 'rejected'; }
+    save();
+    renderCodes();
+    renderItems();
+    renderCounts();
+  }
+  function removeAdded(code) {
+    state.added = state.added.filter(function (a) { return a.code !== code; });
+    delete state.decisions[code];
+    delete state.openAlt[code];
+    if (state.active && state.active.type === 'code' && state.active.id === code) { state.active = null; }
+    save();
+    renderCodes();
+    renderItems();
+    renderCounts();
+    paintNote();
+  }
+  function setView(name) {
+    state.view = name;
+    var codes = name === 'codes';
+    $('view-codes').hidden = !codes;
+    $('view-items').hidden = codes;
+    $('tab-codes').setAttribute('aria-selected', codes ? 'true' : 'false');
+    $('tab-items').setAttribute('aria-selected', codes ? 'false' : 'true');
+  }
+  function copyText() {
+    var lines = [];
+    allCodes().forEach(function (c) { if (decisionOf(c.code) === 'accepted') { lines.push(c.code + '\t' + c.title); } });
+    return lines.join('\n');
+  }
+  function onCopy() {
+    var text = copyText();
+    var status = $('copy-status');
+    var fb = $('copy-fallback');
+    if (!text) { status.textContent = 'No accepted codes.'; return; }
+    function fallback() {
+      fb.hidden = false;
+      fb.value = text;
+      fb.focus();
+      fb.select();
+      status.textContent = 'Copy the list below.';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        fb.hidden = true;
+        status.textContent = 'Copied ' + text.split('\n').length + ' accepted codes.';
+      }, fallback);
+    } else {
+      fallback();
+    }
+  }
+  function onReset() {
+    state.decisions = {};
+    state.added = [];
+    state.openAlt = {};
+    state.active = null;
+    $('copy-status').textContent = '';
+    $('copy-fallback').hidden = true;
+    save();
+    renderAll();
+  }
+
+  function renderAll() {
+    renderStages();
+    renderNote();
+    renderCodes();
+    renderItems();
+    renderCounts();
+  }
+  function loadExample(idx) {
+    state.ex = EXAMPLES[idx];
+    state.active = null;
+    state.decisions = {};
+    state.added = [];
+    state.openAlt = {};
+    load();
+    var ex = state.ex;
+    $('note-title').textContent = ex.title || 'Note';
+    $('note-source').textContent = ex.source && ex.source.label ? ex.source.label : '';
+    $('mock-banner').hidden = ex.output_kind !== 'mock';
+    var exButtons = $('example-buttons').querySelectorAll('.ex-btn');
+    for (var bi = 0; bi < exButtons.length; bi++) {
+      exButtons[bi].setAttribute('aria-pressed', Number(exButtons[bi].getAttribute('data-example')) === idx ? 'true' : 'false');
+    }
+    var foot = $('foot');
+    foot.textContent = '';
+    if (ex.source && ex.source.citation) {
+      foot.appendChild(document.createTextNode('Note source: ' + ex.source.citation + ' '));
+      if (ex.source.url) {
+        var a = el('a', null, ex.source.url);
+        a.href = ex.source.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        foot.appendChild(a);
+      }
+    }
+    if (ex.catalog) { foot.appendChild(document.createTextNode(' · Code titles: ' + ex.catalog)); }
+    $('copy-status').textContent = '';
+    $('copy-fallback').hidden = true;
+    setView('codes');
+    renderAll();
+  }
+
+  function start() {
+    var box = $('example-buttons');
+    if (!EXAMPLES.length) {
+      $('view-codes').appendChild(el('p', 'meta', 'No example to show.'));
+      return;
+    }
+    EXAMPLES.forEach(function (ex, i) {
+      // the name in parentheses in the title labels the button
+      var m = /\(([^)]+)\)/.exec(ex.title || '');
+      var b = el('button', 'ex-btn', m ? m[1] : (ex.title || ex.id));
+      b.type = 'button';
+      b.setAttribute('data-example', String(i));
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () { loadExample(i); });
+      box.appendChild(b);
+    });
+    $('tab-codes').addEventListener('click', function () { setView('codes'); });
+    $('tab-items').addEventListener('click', function () { setView('items'); });
+    $('copy-btn').addEventListener('click', onCopy);
+    $('reset-btn').addEventListener('click', onReset);
+    $('note-body').addEventListener('click', function (e) {
+      var m = e.target && e.target.closest ? e.target.closest('mark.ev') : null;
+      if (m) { onMarkActivate(m); }
+    });
+    $('note-body').addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches && e.target.matches('mark.ev')) {
+        e.preventDefault();
+        onMarkActivate(e.target);
+      }
+    });
+    loadExample(0);
+  }
+  start();
+})();
+</script>
+
+</body>
+</html>

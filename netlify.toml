@@ -1,0 +1,8 @@
+[build]
+  publish = "."
+
+# 첫 화면은 한국어 페이지로 보여준다
+[[redirects]]
+  from = "/"
+  to = "/index_kr.html"
+  status = 200
